@@ -1,0 +1,8 @@
+bool play
+uint8 speed
+string topic
+time starttime
+time endtime
+---
+time currenttime
+uint32 status

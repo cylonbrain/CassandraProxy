@@ -1,0 +1,17 @@
+<package>
+  <description brief="CassandraProxy">
+
+     CassandraProxy
+
+  </description>
+  <author>Andy Breuhan</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/CassandraProxy</url>
+  <depend package="rospy"/>
+  <depend package="rosmsg"/>
+  <depend package="rostopic"/>
+
+</package>
+
+

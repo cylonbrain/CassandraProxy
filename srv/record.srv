@@ -1,0 +1,6 @@
+bool record
+string topic
+time starttime
+time endtime
+---
+uint32 status
