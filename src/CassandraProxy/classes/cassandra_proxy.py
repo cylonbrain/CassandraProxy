@@ -23,7 +23,7 @@ class CassandraProxy:
         self.tableList = {};
         self.subscriberList = {};
 
-    def addTopic(self,topic):
+    def addTopic(self,topic, starttime, endtime):
         msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
         table = None
         
@@ -85,6 +85,19 @@ class CassandraProxy:
 
         #comparator = CompositeType(LongType(reversed=True), AsciiType())
         #sys.create_column_family(keyspace, "CF1", comparator_type=comparator)
+    def playTopic(self, speed, topic, starttime, endtime):
+        #Hole passende Tabelle zu Topic
+        #while currenttime<endtime
+            #publish topic
+		tablename = topic.split('/')[-1]
+		try :
+			table = pycassa.ColumnFamily(self.pool, tablename)
+		except :
+			print "No matching table to topic"
+	
+		messages = table.get_range(starttime, endtime);
+		for key, message in messages:
+			print key + " => " + message
 
 
 #   ROS (Python)    Cassandra

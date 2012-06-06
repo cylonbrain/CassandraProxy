@@ -9,21 +9,28 @@ cassandraproxy = None
 
 def recordCall(param):
     if param.record==True:
-        cassandraproxy.addTopic(param.topic)
+        cassandraproxy.addTopic(param.topic, param.startime, param.endtime)
         cassandraproxy.spin()
         return 1
     else:
         cassandraproxy.removeTopic(param.topic)
-        cassandraproxy.dispose()
         return 0
 
 def playCall(param):
+    if param.play==True:
+        cassandraproxy.playTopic(param.speed, param.topic, param.starttime, param.endtime)
+        cassandraproxy.spin()
+        return 1
+    else:
+        cassandraproxy.stopPlayTopic(param.topic)
+        return 0
+
     print "Not implemented yet"
     rospy.spin()
 
 def init():
     global cassandraproxy
-    rospy.init_node('CassandraProxy')
+    rospy.init_node('CassandraProxyService')
         
     host     = rospy.get_param("~host", "127.0.0.1")
     port     = int(rospy.get_param("~port", 9160))
