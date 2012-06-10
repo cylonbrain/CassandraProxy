@@ -13,19 +13,17 @@ def callRecordService(doRecord, topic, starttime, endtime):
     rospy.wait_for_service('CassandraProxyRecord')
     try:
         recordCall = rospy.ServiceProxy('CassandraProxyRecord', record)
-        status = recordCall(doRecord ,topic, starttime, endtime)
+        status = recordCall(doRecord ,topic, rospy.Time.from_sec(float(starttime)), rospy.Time.from_sec(float(endtime)))
         return status
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
-def callRecordService(doPlay, speed, topic, starttime, endtime):
-	
-	
+def callPlayService(doPlay, speed, topic, starttime, endtime):
 	
     rospy.wait_for_service('CassandraProxyPlay')
     try:
         playCall = rospy.ServiceProxy('CassandraProxyPlay', play)
-        status = playCall(doPlay, speed, topic, time.strptime(starttime), time.strptime(endtime))
+        status = playCall(doPlay, speed, topic, rospy.Time.from_sec(float(starttime)), rospy.Time.from_sec(float(endtime)))
         return status
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
@@ -43,9 +41,9 @@ if __name__ == "__main__":
 				callRecordService(False, sys.argv[3],sys.argv[4],sys.argv[5])
 		if sys.argv[1]=="play":
 			if sys.argv[2]=="start":
-				callRecordService(True, 1.0, sys.argv[3],sys.argv[4],sys.argv[5])
+				callPlayService(True, 1.0, sys.argv[3],sys.argv[4],sys.argv[5])
 			else:
-				callRecordService(False, 1.0, sys.argv[3],sys.argv[4],sys.argv[5])
+				callPlayService(False, 1.0, sys.argv[3],sys.argv[4],sys.argv[5])
 		else:
 			usage()
     else:
