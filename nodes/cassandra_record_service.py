@@ -30,9 +30,7 @@ def init():
     host     = rospy.get_param("~host", "127.0.0.1")
     port     = int(rospy.get_param("~port", 9160))
     keyspace = rospy.get_param("~keyspace", "logging")
-    topic = rospy.get_param("~topic", "/turtle1/command_velocity")
     cassandraproxy = CassandraProxy(host,port,keyspace)
-
     r = rospy.Service('CassandraProxyRecord', record, recordCall)
     p = rospy.Service('CassandraProxyPlay', play, playCall)
     print "Service initialised"

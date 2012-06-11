@@ -92,6 +92,20 @@ class CassandraProxy:
 
         #comparator = CompositeType(LongType(reversed=True), AsciiType())
         #sys.create_column_family(keyspace, "CF1", comparator_type=comparator)
+    def __playTopic(self, speed, table, starttime, endtime)
+        
+        messages = table.get_range()#start=str(starttime), finish=str(endtime));
+        #previous_time = float(0.0)
+        for key, message in messages:
+            return_object = yaml.load(message['yaml_object'])
+            pub.publish(return_object)
+            
+            #DEBUG
+            print key + " => " + str(return_object)
+            #previous_time = float(key)
+            #rospy.sleep(float(key) - previous_time
+            rospy.sleep(1.0)
+        
         
     def playTopic(self, speed, topic, starttime, endtime):
         msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
@@ -103,17 +117,8 @@ class CassandraProxy:
             print "No matching table to topic"
             return
         
-        messages = table.get_range()#start=str(starttime), finish=str(endtime));
-        
-        for key, message in messages:
-            return_object = yaml.load(message['yaml_object'])
-            pub.publish(return_object)
-            
-            #DEBUG
-            print key + " => " + str(return_object)
-            rospy.sleep(1.0)
-    
-        
+        thread.start_new_thread(__playTopic, speed, table, starttime, endtime)
+
 
 #   ROS (Python)    Cassandra
 #-------------------------------
