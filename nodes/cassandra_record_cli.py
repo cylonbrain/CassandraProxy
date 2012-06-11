@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import roslib; roslib.load_manifest('CassandraProxy')
-
 import sys
-
 import rospy
 import time
 
@@ -28,23 +26,22 @@ def callPlayService(doPlay, speed, topic, starttime, endtime):
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
-def usage():
-    return "%s (record/play) (start/stop) topic [starttime endtime]"%sys.argv[0]
-    sys.exit(1)
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 3:
-		if sys.argv[1]=="record":
-			if sys.argv[2]=="start":
-				callRecordService(True, sys.argv[3],sys.argv[4],sys.argv[5])
-			else:
-				callRecordService(False, sys.argv[3],sys.argv[4],sys.argv[5])
-		if sys.argv[1]=="play":
-			if sys.argv[2]=="start":
-				callPlayService(True, 1.0, sys.argv[3],sys.argv[4],sys.argv[5])
-			else:
-				callPlayService(False, 1.0, sys.argv[3],sys.argv[4],sys.argv[5])
-		else:
-			usage()
-    else:
-        print usage()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", help="Either record or play a topic", choices={'record','play'})
+    parser.add_argument("start_stop", help="start/stop recording/playback ", choices={'start','stop'})
+    parser.add_argument("topic", help="Topic you want to record. Example: /turtle1/command_velocity")
+    parser.add_argument("-s", "--speed", help="Playback speed as float. Default: 1.0", type=float, default=1.0)
+    parser.add_argument("-b", "--begin", help="Start record/play at given time as float", type=float, default=1.0)
+    parser.add_argument("-e", "--end", help="Stop record/play at given time as float", type=float,  default=999999999.0)
+    args = parser.parse_args()
+    if args.start_stop == 'play' :
+        start = True
+    else :
+        start = False
+    
+    if args.command == 'record' :
+        callRecordService(True, args.topic, args.begin, args.end)
+    else :
+        callPlayService(True, args.speed, args.topic, args.begin, args.end)
