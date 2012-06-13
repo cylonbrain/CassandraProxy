@@ -92,7 +92,7 @@ class CassandraProxy:
 
         #comparator = CompositeType(LongType(reversed=True), AsciiType())
         #sys.create_column_family(keyspace, "CF1", comparator_type=comparator)
-    def __playTopic(self, speed, table, starttime, endtime)
+    def __playTopic(self, speed, table, pub, starttime, endtime):
         
         messages = table.get_range()#start=str(starttime), finish=str(endtime));
         #previous_time = float(0.0)
@@ -117,7 +117,7 @@ class CassandraProxy:
             print "No matching table to topic"
             return
         
-        thread.start_new_thread(__playTopic, speed, table, starttime, endtime)
+        thread.start_new_thread(self.__playTopic, (speed, table, pub, starttime, endtime))
 
 
 #   ROS (Python)    Cassandra

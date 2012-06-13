@@ -3,6 +3,7 @@ import roslib; roslib.load_manifest('CassandraProxy')
 import sys
 import rospy
 import time
+import argparse
 
 from CassandraProxy.srv import *
 
