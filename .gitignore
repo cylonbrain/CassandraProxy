@@ -1,0 +1,6 @@
+.DS_Store
+build/
+*.pyc
+src/CassandraProxy/srv/
+srv_gen/
+src/CassandraProxy/__init__.py

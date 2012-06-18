@@ -27,38 +27,32 @@ class CassandraProxy:
         except :
             self.createTable('metadata')
             self.metadata = pycassa.ColumnFamily(self.pool, 'metadata')
+        try :
+            self.topictable = pycassa.ColumnFamily(self.pool, 'data')
+        except :
+            self.createTable('data', comp_type=DoubleType())
+            self.topictable = pycassa.ColumnFamily(self.pool, 'data')
             
-        self.tableList = {};
         self.subscriberList = {};
 
     def addTopic(self,topic, starttime, endtime):
         #TODO: Check doppeltes Topic
         msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
-        table = None
-        tablename = hashlib.sha1(topic).hexdigest()
-        
-        try :
-            table = pycassa.ColumnFamily(self.pool, tablename)
-        except :
-            self.createTable(tablename)
-            table = pycassa.ColumnFamily(self.pool, tablename)
 
-        self.metadata.insert(topic, {'tablename' : tablename});
-        self.tableList[str(topic)] = table
-        self.subscriberList[str(topic)] = rospy.Subscriber(real_topic, msg_class, self.insertCassandra, table)
-        print "Added topic: " + str(topic) + " with Tablename: " + tablename
+        #self.metadata.insert(topic, {'tablename' : topic, 'msg_class' : msg_class});
+        
+        self.subscriberList[str(topic)] = rospy.Subscriber(real_topic, msg_class, self.insertCassandra, topic)
+        print "Added topic: " + str(topic)
 
     def removeTopic(self,topic):
         self.subscriberList[str(topic)].unregister()
-        del self.tableList[str(topic)]
         del self.subscriberList[str(topic)]
         print "Removed topic: " + str(topic)
 
-
-    def insertCassandra(self,data, table):
+    def insertCassandra(self,data, topic):
         time = rospy.get_time()
-        table.insert(str(time), {'yaml_object': str(yaml.dump(data))})
-        
+        self.topictable.insert(topic, {time: str(yaml.dump(data))})
+
         #DEBUG
         print "EVENT"
 
@@ -92,32 +86,31 @@ class CassandraProxy:
 
         #comparator = CompositeType(LongType(reversed=True), AsciiType())
         #sys.create_column_family(keyspace, "CF1", comparator_type=comparator)
-    def __playTopic(self, speed, table, pub, starttime, endtime):
+    def __playTopic(self, speed, topic, pub, starttime, endtime):
         
-        messages = table.get_range()#start=str(starttime), finish=str(endtime));
-        #previous_time = float(0.0)
-        for key, message in messages:
-            return_object = yaml.load(message['yaml_object'])
+        messages = self.topictable.get(topic, column_start=starttime.to_sec(), column_finish=endtime.to_sec());
+        current_time = float(0.0)
+        previous_time = float(0.0)
+        for timestamp in messages.keys():
+
+            return_object = yaml.load(messages[timestamp])
             pub.publish(return_object)
-            
-            #DEBUG
-            print key + " => " + str(return_object)
-            #previous_time = float(key)
-            #rospy.sleep(float(key) - previous_time
-            rospy.sleep(1.0)
+            if previous_time <= 0.0:
+                delta_t = 0.0
+            else:
+                delta_t = timestamp - previous_time
+            current_time += delta_t
+            print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
+            rospy.sleep(delta_t)
+            previous_time = timestamp
         
         
     def playTopic(self, speed, topic, starttime, endtime):
         msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
-        tablename = hashlib.sha1(topic).hexdigest()
         pub = rospy.Publisher(real_topic, msg_class)
-        try :
-            table = pycassa.ColumnFamily(self.pool, tablename)
-        except :
-            print "No matching table to topic"
-            return
-        
-        thread.start_new_thread(self.__playTopic, (speed, table, pub, starttime, endtime))
+        #self.__playTopic(speed, topic, pub, starttime, endtime)
+        print "Playing topic: " + topic + " from Timestamp" + str(starttime.to_sec()) + " to " + str(endtime.to_sec())
+        thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
 
 
 #   ROS (Python)    Cassandra
