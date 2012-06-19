@@ -28,15 +28,24 @@ def callPlayService(doPlay, speed, topic, starttime, endtime):
         print "Service call failed: %s"%e
 
 
+# info allgemein ueber alles, ueber topic ...
+# info cluster / cassandra
+# play _pause, delay, loop 
+#  --queue=SIZE          use an outgoing queue of size SIZE (defaults to 100)
+# --topics              "the list topics to play back"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", help="Either record or play a topic", choices={'record','play'})
+    parser.add_argument("command", help="Either record or play a topic", choices={'record','play','delete', 'info'})
     parser.add_argument("start_stop", help="start/stop recording/playback ", choices={'start','stop'})
     parser.add_argument("topic", help="Topic you want to record. Example: /turtle1/command_velocity")
     parser.add_argument("-s", "--speed", help="Playback speed as float. Default: 1.0", type=float, default=1.0)
     parser.add_argument("-b", "--begin", help="Start record/play at given time as float", type=float, default=1.0)
     parser.add_argument("-e", "--end", help="Stop record/play at given time as float", type=float,  default=4294967295.0)
     args = parser.parse_args()
+    
+    
+    
     if args.start_stop == 'start' :
         start = True
     else :

@@ -21,7 +21,7 @@ class CassandraProxy:
         self.keyspace = keyspace
         self.createKeyspace()
         self.pool = pycassa.ConnectionPool(self.keyspace, [self.host + ":" + str(self.port)])
-        
+        self.counter = 0
         try :
             self.metadata = pycassa.ColumnFamily(self.pool, 'metadata')
         except :
@@ -54,7 +54,8 @@ class CassandraProxy:
         self.topictable.insert(topic, {time: str(yaml.dump(data))})
 
         #DEBUG
-        print "EVENT"
+        self.counter += 1
+        print "EVENT", self.counter
 
     def spin(self):
         rospy.spin()
@@ -88,7 +89,7 @@ class CassandraProxy:
         #sys.create_column_family(keyspace, "CF1", comparator_type=comparator)
     def __playTopic(self, speed, topic, pub, starttime, endtime):
         
-        messages = self.topictable.get(topic, column_start=starttime.to_sec(), column_finish=endtime.to_sec());
+        messages = self.topictable.get(topic, column_start=starttime.to_sec(), column_finish=endtime.to_sec(), column_count=600);
         current_time = float(0.0)
         previous_time = float(0.0)
         for timestamp in messages.keys():
