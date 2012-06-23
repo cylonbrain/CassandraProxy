@@ -8,20 +8,22 @@ import rospy
 cassandraproxy = None
 
 def recordCall(param):
-    if param.record==True:
-        cassandraproxy.addTopic(param.topic, param.starttime, param.endtime)
-        return 1
-    else:
-        cassandraproxy.removeTopic(param.topic)
-        return 0
+    for topic in (param.topics):
+        if param.record==True:
+            cassandraproxy.addTopic(topic, param.starttime, param.endtime)
+        else:
+            cassandraproxy.removeTopic(topic)
+    return 0
+
 
 def playCall(param):
-    if param.play==True:
-        cassandraproxy.playTopic(param.speed, param.topic, param.starttime, param.endtime)
-        return rospy.get_rostime(),1
-    else:
-        cassandraproxy.stopPlayTopic(param.topic)
-        return None, 0
+    for topic in param.topics:
+        if param.play==True:
+            cassandraproxy.playTopic(param.speed, topic, param.starttime, param.endtime)
+        else:
+            cassandraproxy.stopPlayTopic(topic)
+    return 0
+
 
 def init():
     global cassandraproxy

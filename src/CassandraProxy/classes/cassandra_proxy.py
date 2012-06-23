@@ -36,18 +36,23 @@ class CassandraProxy:
         self.subscriberList = {};
 
     def addTopic(self,topic, starttime, endtime):
-        #TODO: Check doppeltes Topic
-        msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
+        if not self.subscriberList.has_key(str(topic)) :
+            msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
 
-        #self.metadata.insert(topic, {'tablename' : topic, 'msg_class' : msg_class});
-        
-        self.subscriberList[str(topic)] = rospy.Subscriber(real_topic, msg_class, self.insertCassandra, topic)
-        print "Added topic: " + str(topic)
+            self.metadata.insert(str(topic), {'tablename' : str(topic), 'msg_class' : str(msg_class)});
+            
+            self.subscriberList[str(topic)] = rospy.Subscriber(real_topic, msg_class, self.insertCassandra, topic)
+            print "Added topic: " + str(topic)
+        else : 
+            print "Topic \"" + str(topic) +"\" already exists"
 
     def removeTopic(self,topic):
-        self.subscriberList[str(topic)].unregister()
-        del self.subscriberList[str(topic)]
-        print "Removed topic: " + str(topic)
+        if self.subscriberList.has_key(str(topic)) :
+            self.subscriberList[str(topic)].unregister()
+            del self.subscriberList[str(topic)]
+            print "Removed topic: " + str(topic)
+        else :
+            print "Cant removed topic: " + str(topic) + ". It doesnt exist!"
 
     def insertCassandra(self,data, topic):
         time = rospy.get_time()
@@ -85,11 +90,9 @@ class CassandraProxy:
             
         sys.close()
 
-        #comparator = CompositeType(LongType(reversed=True), AsciiType())
-        #sys.create_column_family(keyspace, "CF1", comparator_type=comparator)
     def __playTopic(self, speed, topic, pub, starttime, endtime):
         
-        messages = self.topictable.get(topic, column_start=starttime.to_sec(), column_finish=endtime.to_sec(), column_count=600);
+        messages = self.topictable.get(topic, column_start=starttime.to_sec(), column_finish=endtime.to_sec(), column_count=100);
         current_time = float(0.0)
         previous_time = float(0.0)
         for timestamp in messages.keys():
@@ -107,11 +110,19 @@ class CassandraProxy:
         
         
     def playTopic(self, speed, topic, starttime, endtime):
+        #TODO: Check if topic exists
         msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
         pub = rospy.Publisher(real_topic, msg_class)
         #self.__playTopic(speed, topic, pub, starttime, endtime)
         print "Playing topic: " + topic + " from Timestamp" + str(starttime.to_sec()) + " to " + str(endtime.to_sec())
         thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
+        
+    def stopPlayTopic(self, topic):
+        print "Not implemented yet"
+    
+    def pausePlayTopic(self, topic):
+        print "Not implemented yet"
+    
 
 
 #   ROS (Python)    Cassandra
