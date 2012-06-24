@@ -102,7 +102,7 @@ class CassandraProxy:
             if previous_time <= 0.0:
                 delta_t = 0.0
             else:
-                delta_t = timestamp - previous_time
+                delta_t = (timestamp - previous_time) / speed
             current_time += delta_t
             print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
             rospy.sleep(delta_t)
@@ -122,6 +122,13 @@ class CassandraProxy:
     
     def pausePlayTopic(self, topic):
         print "Not implemented yet"
+    
+    def deleteTopic(self, topic, starttime, endtime):
+        self.topictable.remove(str(topic), column_start=starttime.to_sec(), column_finish=endtime.to_sec())
+    
+    def deleteAllTopics(self):
+        self.topictable.truncate()
+        
     
 
 
