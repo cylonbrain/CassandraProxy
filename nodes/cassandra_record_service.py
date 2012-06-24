@@ -24,6 +24,21 @@ def playCall(param):
             cassandraproxy.stopPlayTopic(topic)
     return 0
 
+def commandCall(param):
+    returnString = ""
+    if len(param.topics)>0:
+        for topic in param.topics:
+            if param.command == 'info':
+                returnString += cassandraproxy.infoTopic(topic)
+            elif param.command == 'delete':
+                cassandraproxy.deleteTopic(topic)
+    else :
+        if param.command == 'info' :
+            returnString += cassandraproxy.infoMeta()
+        elif param.command == 'delete' :
+            cassandraproxy.deleteAllTopics()
+    return returnString
+
 
 def init():
     global cassandraproxy
@@ -33,8 +48,9 @@ def init():
     port     = int(rospy.get_param("~port", 9160))
     keyspace = rospy.get_param("~keyspace", "logging")
     cassandraproxy = CassandraProxy(host,port,keyspace)
-    r = rospy.Service('CassandraProxyRecord', record, recordCall)
-    p = rospy.Service('CassandraProxyPlay', play, playCall)
+    rospy.Service('CassandraProxyRecord', record, recordCall)
+    rospy.Service('CassandraProxyPlay', play, playCall)
+    rospy.Service('CassandraProxyCommand', command, commandCall)
     print "Service initialised"
     
 

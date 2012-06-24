@@ -38,10 +38,23 @@ def __play(args):
         print "Service call failed: %s"%e
 
 def __delete(args):
+    rospy.wait_for_service('CassandraProxyCommand')
     print args
+    try:
+        commandCall = rospy.ServiceProxy('CassandraProxyCommand', command)
+		commandCall('delete', args.topics)
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+
 
 def __info(args):
+    rospy.wait_for_service('CassandraProxyCommand')
     print args
+    try:
+        commandCall = rospy.ServiceProxy('CassandraProxyCommand', command)
+        print commandCall('info', args.topics)
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -92,21 +92,25 @@ class CassandraProxy:
 
     def __playTopic(self, speed, topic, pub, starttime, endtime):
         
-        messages = self.topictable.get(topic, column_start=starttime.to_sec(), column_finish=endtime.to_sec(), column_count=100);
         current_time = float(0.0)
-        previous_time = float(0.0)
-        for timestamp in messages.keys():
+        previous_time = starttime.to_sec()
+        while True :
+            messages = self.topictable.get(topic, column_start=previous_time, column_finish=endtime.to_sec(), column_count=100);
+            if len(messages) == 0:
+                break
+            
+            for timestamp in messages.keys():
 
-            return_object = yaml.load(messages[timestamp])
-            pub.publish(return_object)
-            if previous_time <= 0.0:
-                delta_t = 0.0
-            else:
-                delta_t = (timestamp - previous_time) / speed
-            current_time += delta_t
-            print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
-            rospy.sleep(delta_t)
-            previous_time = timestamp
+                return_object = yaml.load(messages[timestamp])
+                pub.publish(return_object)
+                if current_time <= 0.0:
+                    delta_t = 0.0
+                else:
+                    delta_t = (timestamp - previous_time) / speed
+                current_time += delta_t
+                print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
+                rospy.sleep(delta_t)
+                previous_time = timestamp
         
         
     def playTopic(self, speed, topic, starttime, endtime):
@@ -128,22 +132,22 @@ class CassandraProxy:
     
     def deleteAllTopics(self):
         self.topictable.truncate()
-        
+
+    def infoMeta(self):
+        returnString = "Current active Topics: "
+        for recodingTopic in self.subscriberList.keys()
+            returnString += recodingTopic + ", "
+        returnString += "\n"
+        returnString = "Recorded Topics: \n"
+        recordedTopics = self.metadata.get_range()
+        for topicName, columns in result:
+            returnString += "\t" + str(key) + "=>" + str(columns)
+        returnString += "\n"
+        return returnString
     
-
-
-#   ROS (Python)    Cassandra
-#-------------------------------
-#   string          AsciiType
-#   unicode (NoSupp)UTF8Type
-#   string          BytesType
-#   long            LongType
-#   long (int)      IntegerType (a generic variable-length integer type)
-#   float           DoubleType
-#   float           FloatType
-#   -               LexicalUUIDType
-#   rospy.Time      DateType
-
-#http://www.ros.org/wiki/msg
-#http://pycassa.github.com/pycassa/api/pycassa/types.html
-
+    def infoTopic(self, topic):
+        returnString = "Topic: " + topic "\n"
+        returnString += "\t Number of Messages: " + str(self.topictable.get_count(topic))
+        returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1)) + "=>" + str(self.topictable.get(topic, column_reversed=True, column_count=1)
+        returnString += "\n"
+        return returnString
