@@ -135,7 +135,7 @@ class CassandraProxy:
 
     def infoMeta(self):
         returnString = "Current active Topics: "
-        for recodingTopic in self.subscriberList.keys()
+        for recodingTopic in self.subscriberList.keys():
             returnString += recodingTopic + ", "
         returnString += "\n"
         returnString = "Recorded Topics: \n"
@@ -146,8 +146,8 @@ class CassandraProxy:
         return returnString
     
     def infoTopic(self, topic):
-        returnString = "Topic: " + topic "\n"
+        returnString = "Topic: " + topic + "\n"
         returnString += "\t Number of Messages: " + str(self.topictable.get_count(topic))
-        returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1)) + "=>" + str(self.topictable.get(topic, column_reversed=True, column_count=1)
+        returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1)) + "=>" + str(self.topictable.get(topic, column_reversed=True, column_count=1))
         returnString += "\n"
         return returnString

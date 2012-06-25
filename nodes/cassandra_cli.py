@@ -30,9 +30,9 @@ def __play(args):
     try:
         playCall = rospy.ServiceProxy('CassandraProxyPlay', play)
         while 1:
-			status = playCall(args.start_stop, args.speed, args.topic, rospy.Time.from_sec(float(args.begin)), rospy.Time.from_sec(float(args.end)))
-			if not args.loop:
-				break
+            status = playCall(args.start_stop, args.speed, args.topic, rospy.Time.from_sec(float(args.begin)), rospy.Time.from_sec(float(args.end)))
+            if not args.loop:
+                break
         return status
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
@@ -42,7 +42,7 @@ def __delete(args):
     print args
     try:
         commandCall = rospy.ServiceProxy('CassandraProxyCommand', command)
-		commandCall('delete', args.topics)
+        commandCall('delete', args.topics)
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
