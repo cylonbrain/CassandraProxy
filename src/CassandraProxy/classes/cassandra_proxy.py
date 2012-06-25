@@ -103,7 +103,7 @@ class CassandraProxy:
 
                 return_object = yaml.load(messages[timestamp])
                 pub.publish(return_object)
-                if current_time <= 0.0:
+                if previous_time == starttime.to_sec():
                     delta_t = 0.0
                 else:
                     delta_t = (timestamp - previous_time) / speed
