@@ -1,4 +1,6 @@
 string command
 string[] topics
+time starttime
+time endtime
 ---
 string infos

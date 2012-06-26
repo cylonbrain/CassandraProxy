@@ -3,6 +3,7 @@ float32 speed
 string[] topics
 time starttime
 time endtime
+uint32 queuesize
 ---
 time currenttime
 uint32 status

@@ -94,11 +94,11 @@ class CassandraProxy:
         
         current_time = float(0.0)
         previous_time = starttime.to_sec()
+        timestamp = float(0.0)
         while True :
             messages = self.topictable.get(topic, column_start=previous_time, column_finish=endtime.to_sec(), column_count=100);
-            if len(messages) == 0:
-                break
             
+            print messages.keys()
             for timestamp in messages.keys():
 
                 return_object = yaml.load(messages[timestamp])
@@ -111,6 +111,9 @@ class CassandraProxy:
                 print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
                 rospy.sleep(delta_t)
                 previous_time = timestamp
+            #TODO: Letzte Message wird wiederholt    
+            if len(messages) == 1:
+                break
         
         
     def playTopic(self, speed, topic, starttime, endtime):
@@ -128,7 +131,7 @@ class CassandraProxy:
         print "Not implemented yet"
     
     def deleteTopic(self, topic, starttime, endtime):
-        self.topictable.remove(str(topic), column_start=starttime.to_sec(), column_finish=endtime.to_sec())
+        self.topictable.remove(str(topic))
     
     def deleteAllTopics(self):
         self.topictable.truncate()
@@ -138,16 +141,17 @@ class CassandraProxy:
         for recodingTopic in self.subscriberList.keys():
             returnString += recodingTopic + ", "
         returnString += "\n"
-        returnString = "Recorded Topics: \n"
+        returnString += "Recorded Topics: \n"
         recordedTopics = self.metadata.get_range()
-        for topicName, columns in result:
-            returnString += "\t" + str(key) + "=>" + str(columns)
+        for topicName, columns in recordedTopics:
+            returnString += "\t" + str(topicName) + " => " + str(columns['msg_class'])
         returnString += "\n"
         return returnString
     
     def infoTopic(self, topic):
         returnString = "Topic: " + topic + "\n"
         returnString += "\t Number of Messages: " + str(self.topictable.get_count(topic))
-        returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1)) + "=>" + str(self.topictable.get(topic, column_reversed=True, column_count=1))
+        returnString += "\n"
+        returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1).keys()) + " => " + str(self.topictable.get(topic, column_reversed=True, column_count=1).keys())
         returnString += "\n"
         return returnString

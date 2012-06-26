@@ -8,12 +8,11 @@ import argparse
 from CassandraProxy.srv import *
 
 
-# info allgemein ueber alles, ueber topic ...
-# info cluster / cassandra
-
-
 def __record(args):
-    print args
+    if args.start_stop=='start':
+        args.start_stop=True
+    else :
+        args.start_stop=False
     rospy.wait_for_service('CassandraProxyRecord')
     try:
         recordCall = rospy.ServiceProxy('CassandraProxyRecord', record)
@@ -24,7 +23,10 @@ def __record(args):
 
 
 def __play(args):
-    print args
+    if args.start_stop=='start':
+        args.start_stop=True
+    else :
+        args.start_stop=False
     rospy.wait_for_service('CassandraProxyPlay')
     rospy.sleep(args.delay)
     try:
@@ -39,20 +41,18 @@ def __play(args):
 
 def __delete(args):
     rospy.wait_for_service('CassandraProxyCommand')
-    print args
     try:
         commandCall = rospy.ServiceProxy('CassandraProxyCommand', command)
-        commandCall('delete', args.topics)
+        commandCall('delete', args.topic, rospy.Time.from_sec(float(args.begin)), rospy.Time.from_sec(float(args.end)))
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
 
 def __info(args):
     rospy.wait_for_service('CassandraProxyCommand')
-    print args
     try:
         commandCall = rospy.ServiceProxy('CassandraProxyCommand', command)
-        print commandCall('info', args.topics)
+        print commandCall('info', args.topic, rospy.Time.from_sec(float(0)), rospy.Time.from_sec(float(0)))
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
 
@@ -82,17 +82,12 @@ if __name__ == "__main__":
     deleteparser.set_defaults(func=__delete)
     deleteparser.add_argument("-b", "--begin", help="Start record/play at given time as float", type=float, default=1.0)
     deleteparser.add_argument("-e", "--end", help="Stop record/play at given time as float", type=float,  default=4294967295.0)
-    deleteparser.add_argument("topic", metavar='TOPIC', nargs='+', help="Topic you want to delete. Example: /turtle1/command_velocity")
+    deleteparser.add_argument("topic", metavar='TOPIC', nargs='*', help="Topic you want to delete. Example: /turtle1/command_velocity")
     
     infoparser = subparsers.add_parser('info')
     infoparser.set_defaults(func=__info)
     infoparser.add_argument("topic", metavar='TOPIC', nargs='*', help="Topic you want info. Example: /turtle1/command_velocity")
     
     args = parser.parse_args()
-    
-    if args.start_stop=='start':
-        args.start_stop=True
-    else :
-        args.start_stop=False
     
     args.func(args)

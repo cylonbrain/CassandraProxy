@@ -22,7 +22,7 @@ def playCall(param):
             cassandraproxy.playTopic(param.speed, topic, param.starttime, param.endtime)
         else:
             cassandraproxy.stopPlayTopic(topic)
-    return 0
+    return rospy.Time.now(),0
 
 def commandCall(param):
     returnString = ""
@@ -31,7 +31,7 @@ def commandCall(param):
             if param.command == 'info':
                 returnString += cassandraproxy.infoTopic(topic)
             elif param.command == 'delete':
-                cassandraproxy.deleteTopic(topic)
+                cassandraproxy.deleteTopic(topic, param.starttime, param.endtime)
     else :
         if param.command == 'info' :
             returnString += cassandraproxy.infoMeta()
