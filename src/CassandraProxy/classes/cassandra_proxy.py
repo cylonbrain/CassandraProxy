@@ -91,7 +91,7 @@ class CassandraProxy:
         sys.close()
 
     def __playTopic(self, speed, topic, pub, starttime, endtime):
-        
+        """Kommentare.."""
         current_time = float(0.0)
         previous_time = starttime.to_sec()
         timestamp = float(0.0)
@@ -155,3 +155,9 @@ class CassandraProxy:
         returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1).keys()) + " => " + str(self.topictable.get(topic, column_reversed=True, column_count=1).keys())
         returnString += "\n"
         return returnString
+        
+    def get_infoTopicCount(self):
+	pass
+      
+    def get_infoTopics(self):
+	# array mit strings der topicnamen ...[]
