@@ -7,6 +7,24 @@ import rospy
 
 cassandraproxy = None
 
+# Diese Klasse erstellt eine Instanz der Klasse "CassandraProxy". Es werden dabei drei verschiedenene Services registriert.
+
+# * CassandraProxyRecord: Wird für die Steuerung der Aufzeichnung von Themen verwendet. 
+# * CassandraProxyPlay: Wird für die Steuerung der Wiedergabe von Themen verwendet. 
+# * CassandraProxyCommand: Wird für alle sonstigen Kommandos, die nicht in einen vorherigen Service aufrufe passt.
+
+# Der Service läuft bis zu seiner Beendigung im Hintergrund. Alle Service aufrufe sind nicht blockierend implementiert.
+# Es können drei Parameter beim Start angegeben werden:
+
+#     1. host : Die Adresse der Cassandra Datenbank
+#     2. port : Der Port unter dem die Cassandra Datenbank läuft
+#     3. keyspace : Der gewünschte Keyspace
+
+# Bsp.: ./cassandra_service.py localhost 9160 logging
+
+# Werden keine Parameter angegeben werden die Standardwerte "localhost" "9160" "logging" verwendet.
+
+
 def recordCall(param):
     for topic in (param.topics):
         if param.record==True:

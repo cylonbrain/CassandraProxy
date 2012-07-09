@@ -14,8 +14,18 @@ import hashlib
 import uuid
 import thread
 
+# Mit der Klasse "CassandraProxy" können beliebige Topics aufgezeichnet und in 
+# eine laufende Cassandrainstanz geschrieben werden. Außerdem können 
+# aufgezeichnete Topics wiedergegeben werden. Diese Klasse übernimmt dabei die
+# komplette Kommunikation mit der Cassandra Datenbank über das Objekt 
+# "self.topictable", welches auf die Tabelle 'data' im angegebenen keyspace 
+# referenziert. In dieser sind alle Nachrichten mit ihren jeweiligen Zeitstempen
+# unter dem Topicnamen als Schlüssel gespeichert. Gleichzeitig wird in der 
+# Tabelle 'metadata' ein Index über die Aufgezeichneten Topics gepflegt.
+
 class CassandraProxy:
     def __init__(self, host, port, keyspace):
+        """Initialisierung der CassandraProxy Klasse. Es wird eine Verbindung zu der Datenbank hergestellt. Außerdem werden die Methoden zum erstellen des jeweiligen Keyspace und der Tabellen aufgerufen."""
         self.host = host
         self.port = port
         self.keyspace = keyspace
@@ -102,6 +112,7 @@ class CassandraProxy:
         previous_time = starttime.to_sec()
         timestamp = float(0.0)
         while True :
+            #Idee: Hole jeweils n Elemente aus der Datenbank. Bei jedem durchlauf jeweils angefangen von dem vorherigen Zeitstempel.
             messages = self.topictable.get(topic, column_start=previous_time, column_finish=endtime.to_sec(), column_count=100);
             
             print messages.keys()
@@ -116,7 +127,7 @@ class CassandraProxy:
                 current_time += delta_t
                 print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
                 rospy.sleep(delta_t)
-                previous_time = timestamp
+                previous_time = timestamp + 0.00000001
             	#TODO: Letzte Message wird wiederholt    
             	if len(messages) == 1:
                 	break
@@ -124,12 +135,14 @@ class CassandraProxy:
         
     def playTopic(self, speed, topic, starttime, endtime):
 		"""Erstellt den neuen Thread für __playTopic"""
-        #TODO: Check if topic exists
-        msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
-        pub = rospy.Publisher(real_topic, msg_class)
-        #self.__playTopic(speed, topic, pub, starttime, endtime)
-        print "Playing topic: " + topic + " from Timestamp" + str(starttime.to_sec()) + " to " + str(endtime.to_sec())
-        thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
+        if doesTopicExist(topic):
+            msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
+            pub = rospy.Publisher(real_topic, msg_class)
+            #self.__playTopic(speed, topic, pub, starttime, endtime)
+            print "Playing topic: " + topic + " from Timestamp" + str(starttime.to_sec()) + " to " + str(endtime.to_sec())
+            thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
+        else:
+            print "ERROR: Cant play Topic. Topic doesnt exist"
         
     def stopPlayTopic(self, topic):
         """Stopt das Publizieren für das angegebene Topic"""
@@ -142,6 +155,8 @@ class CassandraProxy:
     def deleteTopic(self, topic, starttime, endtime):
         """Entfernt die Nachrichten des angegebenen Topics im Intervall von Start- bis Endzeit"""
         self.topictable.remove(str(topic), column_start=starttime.to_sec(), column_finish=endtime.to_sec())
+        if self.topictable.get_count(str(topic)) == 0:
+            self.metadata.remove(str(topic))
     
     def deleteAllTopics(self):
 		"""Löscht die Topictabelle vollständig. Damit werden alle Nachrichten aller Topics entfernt"""
@@ -178,6 +193,13 @@ class CassandraProxy:
     def getTimeIntervall(self, topic):
 	    """Gibt ein zweielementigesarray mit Startzeit und Endzeitpunkt für topic zurück"""
 	    return  array(self.topictable.get(topic, column_count=1), self.topictable.get(topic, column_reversed=True, column_count=1))
+        
+    def doesTopicExist(self, topic):
+        recordedTopics = self.metadata.get_range()
+        for topicName in recordedTopics:
+            if topicName == topic:
+                return True
+        return False
 
 
                                                                                                                  

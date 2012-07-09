@@ -7,6 +7,8 @@ import argparse
 
 from CassandraProxy.srv import *
 
+# Mit diesem Wrapper Script kann über die Kommandozeile mit dem CassandraProxyService kommuniziert werden.
+# Für weitere Informationen ./cassandra_cli.py --help
 
 def __record(args):
     if args.start_stop=='start':
