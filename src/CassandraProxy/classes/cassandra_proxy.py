@@ -36,17 +36,20 @@ class CassandraProxy:
         self.subscriberList = {};
 
     def addTopic(self,topic, starttime, endtime):
-        if not self.subscriberList.has_key(str(topic)) :
+        """Diese Methode registriert ein Topic für die Aufzeichnung in die Cassandra Datenbank. Außerdem werden Metadaten in eine separate Tabelle geschrieben"""
+	    #TODO: Anfangs und Endzeit berücksichtigen
+	    if not self.subscriberList.has_key(str(topic)) :
             msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
 
             self.metadata.insert(str(topic), {'tablename' : str(topic), 'msg_class' : str(msg_class)});
             
-            self.subscriberList[str(topic)] = rospy.Subscriber(real_topic, msg_class, self.insertCassandra, topic)
+            self.subscriberList[str(topic)] = rospy.Subscriber(real_topic, msg_class, self.__insertCassandra, topic)
             print "Added topic: " + str(topic)
         else : 
             print "Topic \"" + str(topic) +"\" already exists"
 
     def removeTopic(self,topic):
+        """Diese Methode entfernt das Abbonement für das angegebene Topic."""
         if self.subscriberList.has_key(str(topic)) :
             self.subscriberList[str(topic)].unregister()
             del self.subscriberList[str(topic)]
@@ -54,7 +57,8 @@ class CassandraProxy:
         else :
             print "Cant removed topic: " + str(topic) + ". It doesnt exist!"
 
-    def insertCassandra(self,data, topic):
+    def __insertCassandra(self,data, topic):
+        """Der Callback, der für jede Nachricht aufgerufen wird und die Nachricht als YAML-Objekt in die CassandraDB einfügt"""
         time = rospy.get_time()
         self.topictable.insert(topic, {time: str(yaml.dump(data))})
 
@@ -69,6 +73,7 @@ class CassandraProxy:
         self.pool.dispose()
 
     def createKeyspace(self):
+	"""Wenn noch kein passender Keyspace exisitert wird dieser hier erstellt"""
         sys = SystemManager(str(self.host) + ":" + str(self.port),framed_transport=True, timeout=30)
         try:
             print "Trying to create new keyspace"
@@ -79,6 +84,7 @@ class CassandraProxy:
 
 
     def createTable(self, name, comp_type=None):
+	"""Erstellt Tabellen mit "name" in dem mittels createKeyspace erstellten Keyspace"""
         sys = SystemManager(str(self.host) + ":" + str(self.port),framed_transport=True, timeout=30)
         try :
             print "Trying to create Table: " + str(name)
@@ -91,7 +97,7 @@ class CassandraProxy:
         sys.close()
 
     def __playTopic(self, speed, topic, pub, starttime, endtime):
-        """Kommentare.."""
+        """Diese Methode läuft in einem eigenen Thread und publiziert das angegebene Topic. Aus Geschwindigkeitsgründen werden jeweils n-Nachrichten einzeln aus der Tabelle geholt"""
         current_time = float(0.0)
         previous_time = starttime.to_sec()
         timestamp = float(0.0)
@@ -111,12 +117,13 @@ class CassandraProxy:
                 print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
                 rospy.sleep(delta_t)
                 previous_time = timestamp
-            #TODO: Letzte Message wird wiederholt    
-            if len(messages) == 1:
-                break
+            	#TODO: Letzte Message wird wiederholt    
+            	if len(messages) == 1:
+                	break
         
         
     def playTopic(self, speed, topic, starttime, endtime):
+		"""Erstellt den neuen Thread für __playTopic"""
         #TODO: Check if topic exists
         msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
         pub = rospy.Publisher(real_topic, msg_class)
@@ -125,18 +132,23 @@ class CassandraProxy:
         thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
         
     def stopPlayTopic(self, topic):
+        """Stopt das Publizieren für das angegebene Topic"""
         print "Not implemented yet"
     
     def pausePlayTopic(self, topic):
+        """Startet das Publizieren für das angegebene Topic"""
         print "Not implemented yet"
     
     def deleteTopic(self, topic, starttime, endtime):
-        self.topictable.remove(str(topic))
+        """Entfernt die Nachrichten des angegebenen Topics im Intervall von Start- bis Endzeit"""
+        self.topictable.remove(str(topic), column_start=starttime.to_sec(), column_finish=endtime.to_sec())
     
     def deleteAllTopics(self):
+		"""Löscht die Topictabelle vollständig. Damit werden alle Nachrichten aller Topics entfernt"""
         self.topictable.truncate()
 
     def infoMeta(self):
+        """Gibt Metainformationen über die aktuell in der Aufzeichnung befindlichen Topics zurück. Außerdem wird ein Listing über die in der Cassandra DB vorhandenen Topics zurückgegeben"""
         returnString = "Current active Topics: "
         for recodingTopic in self.subscriberList.keys():
             returnString += recodingTopic + ", "
@@ -149,15 +161,23 @@ class CassandraProxy:
         return returnString
     
     def infoTopic(self, topic):
-        returnString = "Topic: " + topic + "\n"
-        returnString += "\t Number of Messages: " + str(self.topictable.get_count(topic))
+	    """Gibt Metainformationen für ein einzelnes Topic wieder. Es werden die Anzahl der zum Topic gehörenden Nachrichten und der Zeitintervall von dem Nachrichten vorhanden sind zurückgegeben und """
+        returnString = "Topic: " + topic "\n"
+        returnString += "\t Number of Messages: " + str(getNumberOfMessages(topic))
+	    start, end = getTimeIntervall(topic)
+        returnString += "\t Starttime, Endtime: " + str(start) + "=>" + str(end)
         returnString += "\n"
         returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1).keys()) + " => " + str(self.topictable.get(topic, column_reversed=True, column_count=1).keys())
         returnString += "\n"
         return returnString
-        
-    def get_infoTopicCount(self):
-	pass
-      
-    def get_infoTopics(self):
-	# array mit strings der topicnamen ...[]
+
+    def getNumberOfMessages(self, topic):
+	    """Anzahl der Nachrichten für topic"""
+    	return self.topictable.get_count(topic)
+	
+    def getTimeIntervall(self, topic):
+	    """Gibt ein zweielementigesarray mit Startzeit und Endzeitpunkt für topic zurück"""
+	    return  array(self.topictable.get(topic, column_count=1), self.topictable.get(topic, column_reversed=True, column_count=1))
+
+
+                                                                                                                 
