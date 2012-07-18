@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import roslib; roslib.load_manifest("CassandraProxy")
 import roslib.message
 import rospy
@@ -6,13 +7,15 @@ import rosmsg
 import rostopic
 import pycassa
 from pycassa.system_manager import *
-import yaml
 from std_msgs.msg import String
 from pycassa.types import *
 import time
 import hashlib
 import uuid
 import thread
+import rosjson
+import json
+import array
 
 # Mit der Klasse "CassandraProxy" können beliebige Topics aufgezeichnet und in 
 # eine laufende Cassandrainstanz geschrieben werden. Außerdem können 
@@ -40,15 +43,15 @@ class CassandraProxy:
         try :
             self.topictable = pycassa.ColumnFamily(self.pool, 'data')
         except :
-            self.createTable('data', comp_type=DoubleType())
+            self.createTable('data', comp_type=DoubleType(), super_table=True)
             self.topictable = pycassa.ColumnFamily(self.pool, 'data')
             
         self.subscriberList = {};
 
     def addTopic(self,topic, starttime, endtime):
         """Diese Methode registriert ein Topic für die Aufzeichnung in die Cassandra Datenbank. Außerdem werden Metadaten in eine separate Tabelle geschrieben"""
-	    #TODO: Anfangs und Endzeit berücksichtigen
-	    if not self.subscriberList.has_key(str(topic)) :
+        #TODO: Anfangs und Endzeit berücksichtigen
+        if not self.subscriberList.has_key(str(topic)) :
             msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
 
             self.metadata.insert(str(topic), {'tablename' : str(topic), 'msg_class' : str(msg_class)});
@@ -70,8 +73,8 @@ class CassandraProxy:
     def __insertCassandra(self,data, topic):
         """Der Callback, der für jede Nachricht aufgerufen wird und die Nachricht als YAML-Objekt in die CassandraDB einfügt"""
         time = rospy.get_time()
-        self.topictable.insert(topic, {time: str(yaml.dump(data))})
-
+        self.topictable.insert(topic, {time: json.loads(rosjson.ros_message_to_json(data),  parse_float=str)})
+             
         #DEBUG
         self.counter += 1
         print "EVENT", self.counter
@@ -83,7 +86,7 @@ class CassandraProxy:
         self.pool.dispose()
 
     def createKeyspace(self):
-	"""Wenn noch kein passender Keyspace exisitert wird dieser hier erstellt"""
+        """Wenn noch kein passender Keyspace exisitert wird dieser hier erstellt"""
         sys = SystemManager(str(self.host) + ":" + str(self.port),framed_transport=True, timeout=30)
         try:
             print "Trying to create new keyspace"
@@ -93,32 +96,33 @@ class CassandraProxy:
         sys.close()
 
 
-    def createTable(self, name, comp_type=None):
-	"""Erstellt Tabellen mit "name" in dem mittels createKeyspace erstellten Keyspace"""
+    def createTable(self, name, comp_type=None, super_table=False):
+        """Erstellt Tabellen mit "name" in dem mittels createKeyspace erstellten Keyspace"""
         sys = SystemManager(str(self.host) + ":" + str(self.port),framed_transport=True, timeout=30)
         try :
             print "Trying to create Table: " + str(name)
-            sys.create_column_family(self.keyspace, str(name), comparator_type=comp_type)
+            sys.create_column_family(self.keyspace, str(name), super=super_table, comparator_type=comp_type)
         except :
             print "Drop and create new Table: " + str(name)
             sys.drop_column_family(self.keyspace, str(name))
-            sys.create_column_family(self.keyspace, str(name),comparator_type=comp_type)
+            sys.create_column_family(self.keyspace, str(name), super=super_table, comparator_type=comp_type)
             
         sys.close()
 
     def __playTopic(self, speed, topic, pub, starttime, endtime):
         """Diese Methode läuft in einem eigenen Thread und publiziert das angegebene Topic. Aus Geschwindigkeitsgründen werden jeweils n-Nachrichten einzeln aus der Tabelle geholt"""
+        msg_class ,_,_= rostopic.get_topic_class(topic, blocking=True)
         current_time = float(0.0)
         previous_time = starttime.to_sec()
         timestamp = float(0.0)
         while True :
             #Idee: Hole jeweils n Elemente aus der Datenbank. Bei jedem durchlauf jeweils angefangen von dem vorherigen Zeitstempel.
             messages = self.topictable.get(topic, column_start=previous_time, column_finish=endtime.to_sec(), column_count=100);
-            
-            print messages.keys()
             for timestamp in messages.keys():
-
-                return_object = yaml.load(messages[timestamp])
+                arguments = zip(messages[timestamp].keys(), map(eval, messages[timestamp].values()))
+                print arguments
+                return_object = msg_class(*arguments)
+                print return_object
                 pub.publish(return_object)
                 if previous_time == starttime.to_sec():
                     delta_t = 0.0
@@ -128,19 +132,20 @@ class CassandraProxy:
                 print "Timestamp: " + str(timestamp) + " Current Time: " + str(current_time)
                 rospy.sleep(delta_t)
                 previous_time = timestamp + 0.00000001
-            	#TODO: Letzte Message wird wiederholt    
-            	if len(messages) == 1:
-                	break
+                #TODO: Letzte Message wird wiederholt    
+                if len(messages) == 1:
+                    break
         
         
     def playTopic(self, speed, topic, starttime, endtime):
-		"""Erstellt den neuen Thread für __playTopic"""
-        if doesTopicExist(topic):
+        """Erstellt den neuen Thread für __playTopic"""
+        if self.doesTopicExist(topic):
             msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
             pub = rospy.Publisher(real_topic, msg_class)
-            #self.__playTopic(speed, topic, pub, starttime, endtime)
+            print msg_class
+            self.__playTopic(speed, topic, pub, starttime, endtime)
             print "Playing topic: " + topic + " from Timestamp" + str(starttime.to_sec()) + " to " + str(endtime.to_sec())
-            thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
+            #thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
         else:
             print "ERROR: Cant play Topic. Topic doesnt exist"
         
@@ -154,12 +159,10 @@ class CassandraProxy:
     
     def deleteTopic(self, topic, starttime, endtime):
         """Entfernt die Nachrichten des angegebenen Topics im Intervall von Start- bis Endzeit"""
-        self.topictable.remove(str(topic), column_start=starttime.to_sec(), column_finish=endtime.to_sec())
-        if self.topictable.get_count(str(topic)) == 0:
-            self.metadata.remove(str(topic))
+        self.metadata.remove(str(topic))
     
     def deleteAllTopics(self):
-		"""Löscht die Topictabelle vollständig. Damit werden alle Nachrichten aller Topics entfernt"""
+        """Löscht die Topictabelle vollständig. Damit werden alle Nachrichten aller Topics entfernt"""
         self.topictable.truncate()
 
     def infoMeta(self):
@@ -176,10 +179,10 @@ class CassandraProxy:
         return returnString
     
     def infoTopic(self, topic):
-	    """Gibt Metainformationen für ein einzelnes Topic wieder. Es werden die Anzahl der zum Topic gehörenden Nachrichten und der Zeitintervall von dem Nachrichten vorhanden sind zurückgegeben und """
-        returnString = "Topic: " + topic "\n"
+        """Gibt Metainformationen für ein einzelnes Topic wieder. Es werden die Anzahl der zum Topic gehörenden Nachrichten und der Zeitintervall von dem Nachrichten vorhanden sind zurückgegeben und """
+        returnString = "Topic: " + topic + "\n"
         returnString += "\t Number of Messages: " + str(getNumberOfMessages(topic))
-	    start, end = getTimeIntervall(topic)
+        start, end = self.getTimeIntervall(topic)
         returnString += "\t Starttime, Endtime: " + str(start) + "=>" + str(end)
         returnString += "\n"
         returnString += "\t Starttime, Endtime: " + str(self.topictable.get(topic, column_count=1).keys()) + " => " + str(self.topictable.get(topic, column_reversed=True, column_count=1).keys())
@@ -187,17 +190,17 @@ class CassandraProxy:
         return returnString
 
     def getNumberOfMessages(self, topic):
-	    """Anzahl der Nachrichten für topic"""
-    	return self.topictable.get_count(topic)
-	
+        """Anzahl der Nachrichten für topic"""
+        return self.topictable.get_count(topic)
+    
     def getTimeIntervall(self, topic):
-	    """Gibt ein zweielementigesarray mit Startzeit und Endzeitpunkt für topic zurück"""
-	    return  array(self.topictable.get(topic, column_count=1), self.topictable.get(topic, column_reversed=True, column_count=1))
+        """Gibt ein zweielementigesarray mit Startzeit und Endzeitpunkt für topic zurück"""
+        return  array(self.topictable.get(topic, column_count=1), self.topictable.get(topic, column_reversed=True, column_count=1))
         
     def doesTopicExist(self, topic):
         recordedTopics = self.metadata.get_range()
         for topicName in recordedTopics:
-            if topicName == topic:
+            if topicName[0] == topic:
                 return True
         return False
 

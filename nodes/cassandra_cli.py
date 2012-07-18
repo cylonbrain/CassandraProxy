@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import roslib; roslib.load_manifest('CassandraProxy')
 import sys
 import rospy
@@ -34,7 +35,7 @@ def __play(args):
     try:
         playCall = rospy.ServiceProxy('CassandraProxyPlay', play)
         while 1:
-            status = playCall(args.start_stop, args.speed, args.topic, rospy.Time.from_sec(float(args.begin)), rospy.Time.from_sec(float(args.end)))
+            status = playCall(args.start_stop, args.speed, args.topic, rospy.Time.from_sec(float(args.begin)), rospy.Time.from_sec(float(args.end)), args.queue)
             if not args.loop:
                 break
         return status
