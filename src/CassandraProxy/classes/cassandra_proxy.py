@@ -7,15 +7,13 @@ import rosmsg
 import rostopic
 import pycassa
 from pycassa.system_manager import *
+import yaml
 from std_msgs.msg import String
 from pycassa.types import *
 import time
 import hashlib
 import uuid
 import thread
-import rosjson
-import json
-import array
 
 # Mit der Klasse "CassandraProxy" können beliebige Topics aufgezeichnet und in 
 # eine laufende Cassandrainstanz geschrieben werden. Außerdem können 
@@ -43,7 +41,7 @@ class CassandraProxy:
         try :
             self.topictable = pycassa.ColumnFamily(self.pool, 'data')
         except :
-            self.createTable('data', comp_type=DoubleType(), super_table=True)
+            self.createTable('data', comp_type=DoubleType())
             self.topictable = pycassa.ColumnFamily(self.pool, 'data')
             
         self.subscriberList = {};
@@ -73,8 +71,8 @@ class CassandraProxy:
     def __insertCassandra(self,data, topic):
         """Der Callback, der für jede Nachricht aufgerufen wird und die Nachricht als YAML-Objekt in die CassandraDB einfügt"""
         time = rospy.get_time()
-        self.topictable.insert(topic, {time: json.loads(rosjson.ros_message_to_json(data),  parse_float=str)})
-             
+        self.topictable.insert(topic, {time: str(yaml.dump(data))})
+
         #DEBUG
         self.counter += 1
         print "EVENT", self.counter
@@ -97,32 +95,31 @@ class CassandraProxy:
 
 
     def createTable(self, name, comp_type=None, super_table=False):
-        """Erstellt Tabellen mit "name" in dem mittels createKeyspace erstellten Keyspace"""
         sys = SystemManager(str(self.host) + ":" + str(self.port),framed_transport=True, timeout=30)
         try :
+        """Erstellt Tabellen mit "name" in dem mittels createKeyspace erstellten Keyspace"""
             print "Trying to create Table: " + str(name)
-            sys.create_column_family(self.keyspace, str(name), super=super_table, comparator_type=comp_type)
+            sys.create_column_family(self.keyspace, str(name), comparator_type=comp_type)
         except :
             print "Drop and create new Table: " + str(name)
             sys.drop_column_family(self.keyspace, str(name))
-            sys.create_column_family(self.keyspace, str(name), super=super_table, comparator_type=comp_type)
+            sys.create_column_family(self.keyspace, str(name),comparator_type=comp_type)
             
         sys.close()
 
     def __playTopic(self, speed, topic, pub, starttime, endtime):
         """Diese Methode läuft in einem eigenen Thread und publiziert das angegebene Topic. Aus Geschwindigkeitsgründen werden jeweils n-Nachrichten einzeln aus der Tabelle geholt"""
-        msg_class ,_,_= rostopic.get_topic_class(topic, blocking=True)
         current_time = float(0.0)
         previous_time = starttime.to_sec()
         timestamp = float(0.0)
         while True :
             #Idee: Hole jeweils n Elemente aus der Datenbank. Bei jedem durchlauf jeweils angefangen von dem vorherigen Zeitstempel.
             messages = self.topictable.get(topic, column_start=previous_time, column_finish=endtime.to_sec(), column_count=100);
+            
+            print messages.keys()
             for timestamp in messages.keys():
-                arguments = zip(messages[timestamp].keys(), map(eval, messages[timestamp].values()))
-                print arguments
-                return_object = msg_class(*arguments)
-                print return_object
+
+                return_object = yaml.load(messages[timestamp])
                 pub.publish(return_object)
                 if previous_time == starttime.to_sec():
                     delta_t = 0.0
@@ -142,10 +139,9 @@ class CassandraProxy:
         if self.doesTopicExist(topic):
             msg_class, real_topic, _ = rostopic.get_topic_class(topic, blocking=True)
             pub = rospy.Publisher(real_topic, msg_class)
-            print msg_class
-            self.__playTopic(speed, topic, pub, starttime, endtime)
+            #self.__playTopic(speed, topic, pub, starttime, endtime)
             print "Playing topic: " + topic + " from Timestamp" + str(starttime.to_sec()) + " to " + str(endtime.to_sec())
-            #thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
+            thread.start_new_thread(self.__playTopic, (speed, topic, pub, starttime, endtime))
         else:
             print "ERROR: Cant play Topic. Topic doesnt exist"
         
