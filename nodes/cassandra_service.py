@@ -37,9 +37,11 @@ def recordCall(param):
 
 def playCall(param):
     for topic in param.topics:
-        if param.play==True:
+        if param.play=='start':
             cassandraproxy.playTopic(param.speed, topic, param.starttime, param.endtime)
-        else:
+        elif param.play=='pause':
+            cassandraproxy.pausePlayTopic(topic)
+        elif param.play=='stop':
             cassandraproxy.stopPlayTopic(topic)
     return rospy.Time.now(),0
 

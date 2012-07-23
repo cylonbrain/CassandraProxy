@@ -26,10 +26,6 @@ def __record(args):
 
 
 def __play(args):
-    if args.start_stop=='start':
-        args.start_stop=True
-    else :
-        args.start_stop=False
     rospy.wait_for_service('CassandraProxyPlay')
     rospy.sleep(args.delay)
     try:

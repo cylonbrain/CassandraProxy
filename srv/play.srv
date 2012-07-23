@@ -1,4 +1,4 @@
-bool play
+string play
 float32 speed
 string[] topics
 time starttime
