@@ -225,5 +225,22 @@ class CassandraProxy:
                 return True
         return False
 
+    def importRosbag(self, bagFile, topic):
+        import rosbag
+        self.createTable(topic)
+        bag = rosbag.Bag(bagFile)
+        for topic, msg, t in bag.read_messages(topics=[topic]):
+            self.topictable.insert(topic, {t: str(yaml.dump(msg))})
+        bag.close()
 
+    def exportRosbag(self, bagFile, topic):
+        import rosbag
+        bag = rosbag.Bag(bagFile, 'w')
+
+        try:
+            #Wrapper Playcode
+            bag.write(topic, timestamp, message)
+
+        finally:
+            bag.close()
                                                                                                                  
